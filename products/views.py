@@ -1,8 +1,9 @@
 from django.shortcuts import render
-from rest_framework import viewsets , permissions
+from rest_framework import viewsets , permissions ,parsers
 from .models import Product, Category
 from .serializers import ProductSerializer, CategorySerializer
- 
+from rest_framework.decorators import action
+from rest_framework.response import Response
 #  Create your views here.
 
 class IsAdminOrReadOnly(permissions.BasePermission):
@@ -42,8 +43,13 @@ class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser]
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
 
-        
+    @action(detail=False, url_path='category/(?P<slug>[^/.]+)')
+    def by_category(self, request, slug=None):
+        products = Product.objects.filter(category__slug__iexact=slug)
+        serializer = self.get_serializer(products, many=True)
+        return Response(serializer.data)  
